@@ -323,20 +323,35 @@
 
     /* ── Load data ──────────────────────────────────────────── */
     async function loadData() {
-      // Load analyses from manifest
-      const r    = await fetch('manifest.json?t=' + Date.now())
-      const data = await r.json()
-      analyses = (data.analyses || []).sort((a,b) => a.company_name.localeCompare(b.company_name))
+      try {
+        // Load analyses from manifest
+        const r    = await fetch('manifest.json?t=' + Date.now())
+        const data = await r.json()
+        analyses = (data.analyses || []).sort((a,b) => a.company_name.localeCompare(b.company_name))
 
-      // Load all access rows (admin sees all via RLS policy)
-      const { data: rows } = await db.from('analysis_access').select('*').order('user_email')
-      accessData = rows || []
+        // Load all access rows with timeout
+        const result = await Promise.race([
+          db.from('analysis_access').select('*').order('user_email'),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 7000))
+        ])
+        accessData = result.data || []
 
-      // Unique users
-      allUsers = [...new Set(accessData.map(r => r.user_email))].sort()
+        // Unique users
+        allUsers = [...new Set(accessData.map(r => r.user_email))].sort()
 
-      renderInviteChips()
-      renderMatrix()
+        renderInviteChips()
+        renderMatrix()
+      } catch (err) {
+        console.error('[Admin] loadData error:', err.message)
+        // Show empty state — still functional for inviting
+        analyses = analyses.length ? analyses : []
+        accessData = []
+        allUsers = []
+        renderInviteChips()
+        renderMatrix()
+        document.getElementById('matrix-wrap').innerHTML =
+          `<div class="table-loading" style="color:#f87171">Erro ao carregar acessos: ${err.message}.<br>Tenta recarregar a página.</div>`
+      }
     }
 
     /* ── Invite chips ───────────────────────────────────────── */
