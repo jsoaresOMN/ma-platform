@@ -399,11 +399,13 @@
     /* ── State ──────────────────────────────────────────────────────── */
     let allAnalyses = []
     let activeId    = null
+    let appReady    = false   // once true, never show auth gate again
 
     /* ── Auth listeners ─────────────────────────────────────────────── */
     db.auth.onAuthStateChange(async (event, session) => {
+      console.log('[MA] auth event:', event, !!session)
       if (event === 'PASSWORD_RECOVERY') {
-        // User clicked password reset link — show set-password modal
+        appReady = true
         await initApp(session.user)
         setTimeout(() => {
           document.getElementById('pwd-modal').classList.add('open')
@@ -413,14 +415,14 @@
         return
       }
       if (session) {
+        appReady = true
         await initApp(session.user)
-        // Show set-password prompt after magic link login
         if (event === 'SIGNED_IN' && session.user.app_metadata.provider === 'email'
             && !session.user.user_metadata.has_password) {
           setTimeout(() => document.getElementById('pwd-modal').classList.add('open'), 800)
         }
       } else {
-        showAuthGate()
+        if (!appReady) showAuthGate()
       }
     })
 
