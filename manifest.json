@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "analyses": [
+    {
+      "id": "project-aspen_2026-05",
+      "company_name": "Project Aspen",
+      "sector": "Hospitality SaaS / PMS",
+      "currency": "BRL",
+      "date_created": "2026-05-26",
+      "date": "2026-05",
+      "ltm_revenue": 19600,
+      "ltm_ebitda": 5000,
+      "ltm_ebitda_margin": 0.2551,
+      "ev_base": 35000,
+      "path": "project-aspen_2026-05/index.html"
+    },
+    {
+      "id": "ask-suite_2026-05",
+      "company_name": "Ask Suite",
+      "sector": "SaaS / Hotelaria Tech",
+      "currency": "BRL",
+      "date_created": "2026-05-26",
+      "date": "2026-05",
+      "ltm_revenue": 29698,
+      "ltm_ebitda": 3057,
+      "ltm_ebitda_margin": 0.1029,
+      "ev_base": 18342,
+      "path": "ask-suite_2026-05/index.html"
+    },
+    {
+      "id": "test-capere",
+      "company_name": "Test Capere",
+      "sector": "Technology",
+      "currency": "BRL",
+      "date_created": "2026-05-26",
+      "date": "2026-05",
+      "ltm_revenue": 3768,
+      "ltm_ebitda": 754,
+      "ltm_ebitda_margin": 0.2,
+      "ev_base": 7540,
+      "path": "test-capere/index.html"
+    }
+  ]
+}

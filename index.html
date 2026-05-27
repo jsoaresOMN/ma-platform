@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M&amp;A Analysis Platform</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a2535;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      color: #e2e8f0;
+    }
+
+    /* ── Sidebar ────────────────────────────────────────────── */
+    #sidebar {
+      width: 288px;
+      min-width: 288px;
+      background: #0a2535;
+      border-right: 1px solid #1a3d50;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .sb-header {
+      padding: 18px 14px 12px;
+      border-bottom: 1px solid #1a3d50;
+      flex-shrink: 0;
+    }
+
+    .sb-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .sb-brand-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.5px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(37,99,235,0.4);
+    }
+
+    .sb-brand-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f1f5f9;
+      line-height: 1.2;
+    }
+
+    .sb-brand-sub {
+      font-size: 11px;
+      color: #475569;
+      margin-top: 1px;
+    }
+
+    .sb-search-wrap {
+      position: relative;
+    }
+
+    .sb-search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #475569;
+      font-size: 13px;
+      pointer-events: none;
+    }
+
+    .sb-search {
+      width: 100%;
+      background: #0d3045;
+      border: 1px solid #1a3d50;
+      border-radius: 8px;
+      padding: 8px 10px 8px 32px;
+      color: #e2e8f0;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .sb-search:focus { border-color: #38bdf8; background: #0f3a55; }
+    .sb-search::placeholder { color: #4a7a96; }
+
+    .sb-section-label {
+      padding: 10px 14px 4px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #4a7a96;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      flex-shrink: 0;
+    }
+
+    #analysis-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2px 8px 12px;
+    }
+
+    #analysis-list::-webkit-scrollbar { width: 3px; }
+    #analysis-list::-webkit-scrollbar-track { background: transparent; }
+    #analysis-list::-webkit-scrollbar-thumb { background: #1a3d50; border-radius: 2px; }
+
+    /* ── Analysis card ──────────────────────────────────────── */
+    .a-card {
+      background: #0d3045;
+      border: 1px solid #1a3d50;
+      border-radius: 10px;
+      padding: 11px 13px;
+      margin-bottom: 5px;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s, transform 0.1s;
+      user-select: none;
+    }
+
+    .a-card:hover {
+      background: #0f3a55;
+      border-color: #38bdf8;
+      transform: translateX(1px);
+    }
+
+    .a-card.active {
+      background: #0f3a55;
+      border-color: #38bdf8;
+      box-shadow: inset 3px 0 0 #38bdf8;
+    }
+
+    .a-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 5px;
+    }
+
+    .a-company {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f1f5f9;
+      line-height: 1.3;
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .a-date {
+      font-size: 10px;
+      color: #475569;
+      flex-shrink: 0;
+      padding-top: 1px;
+    }
+
+    .a-sector {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 20px;
+      background: rgba(56,189,248,0.15);
+      color: #7dd3fc;
+      font-weight: 500;
+      margin-bottom: 7px;
+    }
+
+    .a-metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 4px 8px;
+    }
+
+    .a-metric-label {
+      font-size: 9px;
+      color: #4a7a96;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .a-metric-value {
+      font-size: 12px;
+      font-weight: 600;
+      color: #90b8cc;
+      margin-top: 1px;
+    }
+
+    .a-metric-value.green { color: #34d399; }
+    .a-metric-value.blue  { color: #60a5fa; }
+
+    /* ── Empty / error states ───────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 36px 16px;
+      color: #4a7a96;
+    }
+
+    .empty-state-icon { font-size: 28px; margin-bottom: 8px; }
+    .empty-state p { font-size: 12px; line-height: 1.6; }
+    .empty-state code {
+      display: block;
+      margin-top: 10px;
+      background: #0d3045;
+      color: #7dd3fc;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: monospace;
+      text-align: left;
+    }
+
+    /* ── Bottom bar ─────────────────────────────────────────── */
+    .sb-footer {
+      padding: 10px 14px;
+      border-top: 1px solid #1a3d50;
+      flex-shrink: 0;
+    }
+
+    .sb-footer-hint {
+      font-size: 10px;
+      color: #2d5f7a;
+      line-height: 1.5;
+    }
+
+    .sb-footer-hint code {
+      color: #4a7a96;
+      background: #0d3045;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+
+    /* ── Main area ──────────────────────────────────────────── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      background: #f8fafc;
+    }
+
+    /* Welcome screen */
+    #welcome {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 14px;
+      color: #64748b;
+      background: #f8fafc;
+    }
+
+    .welcome-logo {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, #2563eb, #1e40af);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -1px;
+      box-shadow: 0 4px 20px rgba(37,99,235,0.3);
+      margin-bottom: 6px;
+    }
+
+    .welcome-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .welcome-sub {
+      font-size: 14px;
+      color: #64748b;
+      text-align: center;
+      max-width: 420px;
+      line-height: 1.6;
+    }
+
+    .welcome-steps {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .welcome-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+
+    .step-num {
+      width: 22px;
+      height: 22px;
+      background: #2563eb;
+      color: #fff;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .step-text {
+      font-size: 13px;
+      color: #334155;
+      line-height: 1.5;
+    }
+
+    .step-text code {
+      background: #f1f5f9;
+      color: #2563eb;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: monospace;
+    }
+
+    /* iframe */
+    #viewer {
+      flex: 1;
+      border: none;
+      display: none;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Loading bar */
+    #loading {
+      height: 3px;
+      background: linear-gradient(90deg, #2563eb 0%, #60a5fa 50%, #2563eb 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite linear;
+      display: none;
+      flex-shrink: 0;
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Sidebar ──────────────────────────────────────────────────── -->
+  <div id="sidebar">
+    <div class="sb-header">
+      <div class="sb-brand">
+        <div class="sb-brand-icon">M&amp;A</div>
+        <div>
+          <div class="sb-brand-name">M&amp;A Platform</div>
+          <div class="sb-brand-sub">Análises de Aquisição</div>
+        </div>
+      </div>
+      <div class="sb-search-wrap">
+        <span class="sb-search-icon">&#128269;</span>
+        <input type="text" id="search" class="sb-search" placeholder="Pesquisar empresa ou sector...">
+      </div>
+    </div>
+
+    <div class="sb-section-label" id="section-label">Análises</div>
+    <div id="analysis-list"></div>
+
+    <div class="sb-footer">
+      <div class="sb-footer-hint">
+        Para adicionar: <code>python analyze.py ficheiro.xlsx</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main ─────────────────────────────────────────────────────── -->
+  <div id="main">
+    <div id="loading"></div>
+
+    <div id="welcome">
+      <div class="welcome-logo">M&amp;A</div>
+      <div class="welcome-title">M&amp;A Analysis Platform</div>
+      <p class="welcome-sub">Plataforma de análise para decisões de aquisição. Selecciona uma análise no menu lateral.</p>
+      <div class="welcome-steps">
+        <div class="welcome-step">
+          <div class="step-num">1</div>
+          <div class="step-text">Partilha o ficheiro financeiro nesta janela (<code>.xlsx</code>, <code>.csv</code>, <code>.pdf</code>)</div>
+        </div>
+        <div class="welcome-step">
+          <div class="step-num">2</div>
+          <div class="step-text">Claude analisa com IA e cria o portal automaticamente</div>
+        </div>
+        <div class="welcome-step">
+          <div class="step-num">3</div>
+          <div class="step-text">A análise aparece no menu lateral e fica disponível para partilha via URL</div>
+        </div>
+      </div>
+    </div>
+
+    <iframe id="viewer" title="Análise M&amp;A"></iframe>
+  </div>
+
+  <script>
+    let allAnalyses = [];
+    let activeId = null;
+
+    /* ── Formatters ──────────────────────────────────────────────── */
+    function fmtK(v) {
+      if (v == null || isNaN(v)) return '--';
+      if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1).replace('.0','') + 'M';
+      return v.toFixed(0) + 'k';
+    }
+
+    function fmtPct(v) {
+      if (v == null || isNaN(v)) return '--';
+      return (v * 100).toFixed(1) + '%';
+    }
+
+    function fmtDate(s) {
+      if (!s) return '';
+      // "2026-05-26" → "Mai 26"  /  "2026-05" → "Mai 26"
+      const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+      const parts = s.split('-');
+      const mo = months[parseInt(parts[1], 10) - 1] || parts[1];
+      return parts[2] ? mo + ' ' + parts[2] : mo + ' ' + parts[0].slice(2);
+    }
+
+    /* ── Card rendering ──────────────────────────────────────────── */
+    function renderCard(a) {
+      const margin = (a.ltm_ebitda && a.ltm_revenue)
+        ? fmtPct(a.ltm_ebitda / a.ltm_revenue) : '--';
+      const cur = a.currency || 'BRL';
+      const isActive = a.id === activeId;
+
+      return `
+        <div class="a-card ${isActive ? 'active' : ''}" onclick="loadAnalysis('${a.id}')" data-id="${a.id}">
+          <div class="a-card-top">
+            <div class="a-company" title="${a.company_name}">${a.company_name}</div>
+            <div class="a-date">${fmtDate(a.date_created || a.date || '')}</div>
+          </div>
+          ${a.sector ? `<div class="a-sector">${a.sector}</div>` : ''}
+          <div class="a-metrics">
+            <div>
+              <div class="a-metric-label">Receita LTM</div>
+              <div class="a-metric-value blue">${cur} ${fmtK(a.ltm_revenue)}</div>
+            </div>
+            <div>
+              <div class="a-metric-label">Mg. EBITDA</div>
+              <div class="a-metric-value">${margin}</div>
+            </div>
+            <div>
+              <div class="a-metric-label">EV Base</div>
+              <div class="a-metric-value green">${a.ev_base ? cur + ' ' + fmtK(a.ev_base) : '--'}</div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    /* ── List rendering ──────────────────────────────────────────── */
+    function filterList() {
+      const q = document.getElementById('search').value.toLowerCase().trim();
+      if (!q) return allAnalyses;
+      return allAnalyses.filter(a =>
+        a.company_name.toLowerCase().includes(q) ||
+        (a.sector || '').toLowerCase().includes(q)
+      );
+    }
+
+    function renderList(list) {
+      const el = document.getElementById('analysis-list');
+      const label = document.getElementById('section-label');
+      const n = list.length;
+      label.textContent = n + (n === 1 ? ' análise' : ' análises');
+
+      if (!n) {
+        el.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">&#128269;</div>
+            <p>Nenhuma análise encontrada.</p>
+          </div>`;
+        return;
+      }
+      el.innerHTML = list.map(renderCard).join('');
+    }
+
+    /* ── Load analysis into iframe ───────────────────────────────── */
+    function loadAnalysis(id) {
+      const a = allAnalyses.find(x => x.id === id);
+      if (!a) return;
+
+      activeId = id;
+      renderList(filterList());
+
+      const bar = document.getElementById('loading');
+      const welcome = document.getElementById('welcome');
+      const viewer = document.getElementById('viewer');
+
+      welcome.style.display = 'none';
+      bar.style.display = 'block';
+      viewer.style.display = 'none';
+
+      const src = a.path || (a.id + '/index.html');
+      viewer.onload = function () {
+        bar.style.display = 'none';
+        viewer.style.display = 'block';
+      };
+      viewer.src = src + '?t=' + Date.now();
+    }
+
+    /* ── Search ──────────────────────────────────────────────────── */
+    document.getElementById('search').addEventListener('input', () => {
+      renderList(filterList());
+    });
+
+    /* ── Boot: fetch manifest ────────────────────────────────────── */
+    function boot() {
+      fetch('manifest.json?t=' + Date.now())
+        .then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(data => {
+          allAnalyses = (data.analyses || []).slice().sort((a, b) =>
+            (b.date_created || b.date || '').localeCompare(a.date_created || a.date || '')
+          );
+          renderList(allAnalyses);
+          if (allAnalyses.length) loadAnalysis(allAnalyses[0].id);
+        })
+        .catch(err => {
+          document.getElementById('analysis-list').innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">&#9888;</div>
+              <p>Erro ao carregar análises.<br><small>${err.message}</small></p>
+              <code>python analyze.py ficheiro.xlsx</code>
+            </div>`;
+          document.getElementById('section-label').textContent = '0 análises';
+        });
+    }
+
+    boot();
+  </script>
+</body>
+</html>
