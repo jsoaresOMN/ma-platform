@@ -243,16 +243,17 @@
     <div class="page">
 
       <!-- Invite -->
-      <div class="section-title">Convidar Utilizador</div>
+      <div class="section-title">Adicionar Utilizador</div>
       <div class="invite-card">
         <h2>Adicionar utilizador</h2>
-        <p>Envia um link de acesso por email e selecciona os projectos a que o utilizador pode aceder.</p>
+        <p>Selecciona os projectos e envia o convite por email. Se já criaste a conta manualmente no Supabase, usa "Só guardar acesso".</p>
         <div class="invite-row">
           <input type="email" id="invite-email" class="invite-email" placeholder="email@empresa.com">
           <div class="invite-analyses" id="invite-chips">
             <!-- populated by JS -->
           </div>
-          <button class="btn-sm btn-primary" id="invite-btn" onclick="inviteUser()">Convidar &rarr;</button>
+          <button class="btn-sm btn-primary" id="invite-btn" onclick="inviteUser(true)">Convidar &rarr;</button>
+          <button class="btn-sm btn-outline" id="access-btn" onclick="inviteUser(false)" style="white-space:nowrap">Só guardar acesso</button>
         </div>
         <div id="invite-msg" class="invite-msg"></div>
       </div>
@@ -382,38 +383,42 @@
     }
 
     /* ── Invite user ────────────────────────────────────────── */
-    async function inviteUser() {
+    async function inviteUser(sendEmail = true) {
       const email    = document.getElementById('invite-email').value.trim().toLowerCase()
       const selected = [...document.querySelectorAll('#invite-chips input:checked')].map(c => c.value)
-      const btn      = document.getElementById('invite-btn')
+      const btn      = sendEmail ? document.getElementById('invite-btn') : document.getElementById('access-btn')
 
       if (!email || !email.includes('@')) { showInviteMsg('Email inválido.', 'error'); return }
+      if (selected.length === 0)          { showInviteMsg('Selecciona pelo menos um projecto.', 'error'); return }
 
-      btn.disabled = true; btn.textContent = 'A convidar...'
+      btn.disabled = true; btn.textContent = sendEmail ? 'A convidar...' : 'A guardar...'
 
-      // Send magic link via Supabase
-      const { error: authErr } = await db.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: 'https://jsoaresomn.github.io/ma-platform/', shouldCreateUser: true }
-      })
-      if (authErr) {
-        showInviteMsg('Erro ao enviar email: ' + authErr.message, 'error')
-        btn.disabled = false; btn.textContent = 'Convidar →'
-        return
+      // Send magic link via Supabase (optional)
+      if (sendEmail) {
+        const { error: authErr } = await db.auth.signInWithOtp({
+          email,
+          options: { emailRedirectTo: 'https://jsoaresomn.github.io/ma-platform/', shouldCreateUser: true }
+        })
+        if (authErr) {
+          showInviteMsg('Erro ao enviar email: ' + authErr.message + (authErr.message.includes('rate limit') ? ' — usa "Só guardar acesso" e cria a conta no Supabase manualmente.' : ''), 'error')
+          btn.disabled = false; btn.textContent = 'Convidar →'
+          return
+        }
       }
 
       // Grant access in access.json
-      if (selected.length > 0) {
-        const current = accessMap[email] || []
-        accessMap[email] = [...new Set([...current, ...selected])]
-        const saved = await saveAccessJson()
-        if (!saved) { btn.disabled = false; btn.textContent = 'Convidar →'; return }
-      }
+      const current = accessMap[email] || []
+      accessMap[email] = [...new Set([...current, ...selected])]
+      const saved = await saveAccessJson()
+      if (!saved) { btn.disabled = false; btn.textContent = sendEmail ? 'Convidar →' : 'Só guardar acesso'; return }
 
-      showInviteMsg(`✓ Convite enviado para ${email}` + (selected.length ? ` com acesso a ${selected.length} projecto(s)` : '') + '.', 'success')
+      const msg = sendEmail
+        ? `✓ Convite enviado para ${email} com acesso a ${selected.length} projecto(s).`
+        : `✓ Acesso guardado para ${email} (${selected.length} projecto(s)). Cria a conta em supabase.com/dashboard.`
+      showInviteMsg(msg, 'success')
       document.getElementById('invite-email').value = ''
       document.querySelectorAll('#invite-chips input:checked').forEach(c => { c.checked = false; c.closest('.analysis-chip').classList.remove('selected') })
-      btn.disabled = false; btn.textContent = 'Convidar →'
+      btn.disabled = false; btn.textContent = sendEmail ? 'Convidar →' : 'Só guardar acesso'
       renderMatrix()
     }
 
