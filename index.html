@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>M&amp;A Analysis Platform</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -16,555 +17,573 @@
       color: #e2e8f0;
     }
 
-    /* ── Sidebar ────────────────────────────────────────────── */
-    #sidebar {
-      width: 288px;
-      min-width: 288px;
-      background: #0a2535;
-      border-right: 1px solid #1a3d50;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-    }
-
-    .sb-header {
-      padding: 18px 14px 12px;
-      border-bottom: 1px solid #1a3d50;
-      flex-shrink: 0;
-    }
-
-    .sb-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 14px;
-    }
-
-    .sb-brand-icon {
-      width: 36px;
-      height: 36px;
-      background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-      border-radius: 9px;
+    /* ── Auth Gate ──────────────────────────────────────────── */
+    #auth-gate {
+      position: fixed; inset: 0;
+      background: linear-gradient(135deg, #061820 0%, #0a2535 50%, #0d3045 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 13px;
-      font-weight: 800;
-      color: #fff;
-      letter-spacing: -0.5px;
-      flex-shrink: 0;
-      box-shadow: 0 2px 8px rgba(37,99,235,0.4);
+      z-index: 1000;
     }
 
-    .sb-brand-name {
-      font-size: 14px;
-      font-weight: 700;
-      color: #f1f5f9;
-      line-height: 1.2;
-    }
-
-    .sb-brand-sub {
-      font-size: 11px;
-      color: #475569;
-      margin-top: 1px;
-    }
-
-    .sb-search-wrap {
-      position: relative;
-    }
-
-    .sb-search-icon {
-      position: absolute;
-      left: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #475569;
-      font-size: 13px;
-      pointer-events: none;
-    }
-
-    .sb-search {
-      width: 100%;
+    .login-card {
       background: #0d3045;
       border: 1px solid #1a3d50;
+      border-radius: 16px;
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+    }
+
+    .login-brand {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .login-icon {
+      width: 52px; height: 52px;
+      background: linear-gradient(135deg, #2563eb, #1e40af);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 800; color: #fff;
+      letter-spacing: -0.5px;
+      margin: 0 auto 12px;
+      box-shadow: 0 4px 20px rgba(37,99,235,0.4);
+    }
+
+    .login-title { font-size: 18px; font-weight: 700; color: #f1f5f9; }
+    .login-sub   { font-size: 12px; color: #4a7a96; margin-top: 4px; }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 11px; color: #4a7a96; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+
+    .form-input {
+      width: 100%;
+      background: #0a2535;
+      border: 1px solid #1a3d50;
       border-radius: 8px;
-      padding: 8px 10px 8px 32px;
+      padding: 10px 12px;
       color: #e2e8f0;
-      font-size: 13px;
+      font-size: 14px;
       outline: none;
       transition: border-color 0.2s;
     }
+    .form-input:focus { border-color: #38bdf8; }
+    .form-input::placeholder { color: #2d5f7a; }
 
+    .btn-primary {
+      width: 100%;
+      background: linear-gradient(135deg, #2563eb, #1e40af);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 11px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 6px;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .login-divider { display: flex; align-items: center; gap: 10px; margin: 14px 0; color: #2d5f7a; font-size: 11px; }
+    .login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: #1a3d50; }
+
+    .btn-ghost {
+      width: 100%;
+      background: transparent;
+      border: 1px solid #1a3d50;
+      color: #7dd3fc;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .btn-ghost:hover { border-color: #38bdf8; background: rgba(56,189,248,0.05); }
+
+    .auth-msg {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      text-align: center;
+      display: none;
+    }
+    .auth-msg.success { background: rgba(52,211,153,0.12); color: #34d399; border: 1px solid rgba(52,211,153,0.2); display: block; }
+    .auth-msg.error   { background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid rgba(248,113,113,0.2); display: block; }
+    .auth-msg.info    { background: rgba(56,189,248,0.10); color: #7dd3fc; border: 1px solid rgba(56,189,248,0.15); display: block; }
+
+    /* ── Sidebar ────────────────────────────────────────────── */
+    #app { display: none; flex: 1; overflow: hidden; }
+
+    #sidebar {
+      width: 288px; min-width: 288px;
+      background: #0a2535;
+      border-right: 1px solid #1a3d50;
+      display: flex; flex-direction: column;
+      height: 100vh; overflow: hidden;
+    }
+
+    .sb-header { padding: 18px 14px 12px; border-bottom: 1px solid #1a3d50; flex-shrink: 0; }
+
+    .sb-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+
+    .sb-brand-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800; color: #fff;
+      letter-spacing: -0.5px; flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(37,99,235,0.4);
+    }
+
+    .sb-brand-name { font-size: 14px; font-weight: 700; color: #f1f5f9; line-height: 1.2; }
+    .sb-brand-sub  { font-size: 11px; color: #4a7a96; margin-top: 1px; }
+
+    .sb-search-wrap { position: relative; }
+    .sb-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #4a7a96; font-size: 13px; pointer-events: none; }
+
+    .sb-search {
+      width: 100%; background: #0d3045; border: 1px solid #1a3d50;
+      border-radius: 8px; padding: 8px 10px 8px 32px;
+      color: #e2e8f0; font-size: 13px; outline: none; transition: border-color 0.2s;
+    }
     .sb-search:focus { border-color: #38bdf8; background: #0f3a55; }
     .sb-search::placeholder { color: #4a7a96; }
 
-    .sb-section-label {
-      padding: 10px 14px 4px;
-      font-size: 10px;
-      font-weight: 600;
-      color: #4a7a96;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      flex-shrink: 0;
-    }
+    .sb-section-label { padding: 10px 14px 4px; font-size: 10px; font-weight: 600; color: #4a7a96; text-transform: uppercase; letter-spacing: 0.08em; flex-shrink: 0; }
 
-    #analysis-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 2px 8px 12px;
-    }
-
+    #analysis-list { flex: 1; overflow-y: auto; padding: 2px 8px 8px; }
     #analysis-list::-webkit-scrollbar { width: 3px; }
     #analysis-list::-webkit-scrollbar-track { background: transparent; }
     #analysis-list::-webkit-scrollbar-thumb { background: #1a3d50; border-radius: 2px; }
 
     /* ── Analysis card ──────────────────────────────────────── */
     .a-card {
-      background: #0d3045;
-      border: 1px solid #1a3d50;
-      border-radius: 10px;
-      padding: 11px 13px;
-      margin-bottom: 5px;
-      cursor: pointer;
-      transition: background 0.12s, border-color 0.12s, transform 0.1s;
+      background: #0d3045; border: 1px solid #1a3d50;
+      border-radius: 10px; padding: 11px 13px; margin-bottom: 5px;
+      cursor: pointer; transition: background 0.12s, border-color 0.12s, transform 0.1s;
       user-select: none;
     }
+    .a-card:hover  { background: #0f3a55; border-color: #38bdf8; transform: translateX(1px); }
+    .a-card.active { background: #0f3a55; border-color: #38bdf8; box-shadow: inset 3px 0 0 #38bdf8; }
 
-    .a-card:hover {
-      background: #0f3a55;
-      border-color: #38bdf8;
-      transform: translateX(1px);
-    }
+    .a-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; margin-bottom: 5px; }
+    .a-company  { font-size: 13px; font-weight: 600; color: #f1f5f9; line-height: 1.3; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .a-date     { font-size: 10px; color: #4a7a96; flex-shrink: 0; padding-top: 1px; }
+    .a-sector   { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 20px; background: rgba(56,189,248,0.15); color: #7dd3fc; font-weight: 500; margin-bottom: 7px; }
 
-    .a-card.active {
-      background: #0f3a55;
-      border-color: #38bdf8;
-      box-shadow: inset 3px 0 0 #38bdf8;
-    }
-
-    .a-card-top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 6px;
-      margin-bottom: 5px;
-    }
-
-    .a-company {
-      font-size: 13px;
-      font-weight: 600;
-      color: #f1f5f9;
-      line-height: 1.3;
-      flex: 1;
-      min-width: 0;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .a-date {
-      font-size: 10px;
-      color: #475569;
-      flex-shrink: 0;
-      padding-top: 1px;
-    }
-
-    .a-sector {
-      display: inline-block;
-      font-size: 10px;
-      padding: 2px 7px;
-      border-radius: 20px;
-      background: rgba(56,189,248,0.15);
-      color: #7dd3fc;
-      font-weight: 500;
-      margin-bottom: 7px;
-    }
-
-    .a-metrics {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 4px 8px;
-    }
-
-    .a-metric-label {
-      font-size: 9px;
-      color: #4a7a96;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .a-metric-value {
-      font-size: 12px;
-      font-weight: 600;
-      color: #90b8cc;
-      margin-top: 1px;
-    }
-
+    .a-metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px 8px; }
+    .a-metric-label { font-size: 9px; color: #4a7a96; text-transform: uppercase; letter-spacing: 0.04em; }
+    .a-metric-value { font-size: 12px; font-weight: 600; color: #90b8cc; margin-top: 1px; }
     .a-metric-value.green { color: #34d399; }
     .a-metric-value.blue  { color: #60a5fa; }
 
     /* ── Empty / error states ───────────────────────────────── */
-    .empty-state {
-      text-align: center;
-      padding: 36px 16px;
-      color: #4a7a96;
-    }
-
+    .empty-state { text-align: center; padding: 36px 16px; color: #4a7a96; }
     .empty-state-icon { font-size: 28px; margin-bottom: 8px; }
     .empty-state p { font-size: 12px; line-height: 1.6; }
-    .empty-state code {
-      display: block;
-      margin-top: 10px;
-      background: #0d3045;
-      color: #7dd3fc;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-family: monospace;
-      text-align: left;
-    }
+    .empty-state code { display: block; margin-top: 10px; background: #0d3045; color: #7dd3fc; padding: 8px 12px; border-radius: 6px; font-size: 11px; text-align: left; }
 
-    /* ── Bottom bar ─────────────────────────────────────────── */
-    .sb-footer {
+    /* ── Sidebar user bar ───────────────────────────────────── */
+    .sb-user {
       padding: 10px 14px;
       border-top: 1px solid #1a3d50;
       flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
     }
 
-    .sb-footer-hint {
-      font-size: 10px;
-      color: #2d5f7a;
-      line-height: 1.5;
-    }
+    .sb-user-email { font-size: 11px; color: #4a7a96; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
 
-    .sb-footer-hint code {
-      color: #4a7a96;
-      background: #0d3045;
-      padding: 1px 5px;
-      border-radius: 3px;
-      font-size: 10px;
+    .sb-user-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+    .sb-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid #1a3d50;
+      background: transparent;
+      color: #7dd3fc;
+      transition: background 0.12s, border-color 0.12s;
+      white-space: nowrap;
     }
+    .sb-btn:hover { background: rgba(56,189,248,0.1); border-color: #38bdf8; }
+    .sb-btn.admin { color: #fbbf24; border-color: rgba(251,191,36,0.3); }
+    .sb-btn.admin:hover { background: rgba(251,191,36,0.1); border-color: #fbbf24; }
+
+    .sb-footer { padding: 8px 14px 10px; flex-shrink: 0; }
+    .sb-footer-hint { font-size: 10px; color: #2d5f7a; line-height: 1.5; }
+    .sb-footer-hint code { color: #4a7a96; background: #0d3045; padding: 1px 5px; border-radius: 3px; font-size: 10px; }
 
     /* ── Main area ──────────────────────────────────────────── */
     #main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-      background: #f8fafc;
+      flex: 1; display: flex; flex-direction: column;
+      height: 100vh; overflow: hidden; background: #f8fafc;
     }
 
-    /* Welcome screen */
     #welcome {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 14px;
-      color: #64748b;
-      background: #f8fafc;
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 14px; color: #64748b; background: #f8fafc;
     }
 
     .welcome-logo {
-      width: 64px;
-      height: 64px;
+      width: 64px; height: 64px;
       background: linear-gradient(135deg, #2563eb, #1e40af);
-      border-radius: 18px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 26px;
-      font-weight: 800;
-      color: #fff;
-      letter-spacing: -1px;
-      box-shadow: 0 4px 20px rgba(37,99,235,0.3);
-      margin-bottom: 6px;
+      border-radius: 18px; display: flex; align-items: center; justify-content: center;
+      font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -1px;
+      box-shadow: 0 4px 20px rgba(37,99,235,0.3); margin-bottom: 6px;
     }
 
-    .welcome-title {
-      font-size: 22px;
-      font-weight: 700;
-      color: #1e293b;
-    }
+    .welcome-title { font-size: 22px; font-weight: 700; color: #1e293b; }
+    .welcome-sub   { font-size: 14px; color: #64748b; text-align: center; max-width: 420px; line-height: 1.6; }
 
-    .welcome-sub {
-      font-size: 14px;
-      color: #64748b;
-      text-align: center;
-      max-width: 420px;
-      line-height: 1.6;
-    }
+    .welcome-steps { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 420px; }
+    .welcome-step  { display: flex; align-items: flex-start; gap: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; }
+    .step-num { width: 22px; height: 22px; background: #2563eb; color: #fff; border-radius: 50%; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .step-text { font-size: 13px; color: #334155; line-height: 1.5; }
+    .step-text code { background: #f1f5f9; color: #2563eb; padding: 1px 6px; border-radius: 4px; font-size: 12px; font-family: monospace; }
 
-    .welcome-steps {
-      margin-top: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      width: 100%;
-      max-width: 420px;
-    }
+    #viewer { flex: 1; border: none; display: none; width: 100%; height: 100%; }
 
-    .welcome-step {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 12px 14px;
-    }
+    #loading { height: 3px; background: linear-gradient(90deg, #2563eb 0%, #60a5fa 50%, #2563eb 100%); background-size: 200% 100%; animation: shimmer 1.2s infinite linear; display: none; flex-shrink: 0; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-    .step-num {
-      width: 22px;
-      height: 22px;
-      background: #2563eb;
-      color: #fff;
-      border-radius: 50%;
-      font-size: 11px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      margin-top: 1px;
+    /* ── Set password modal ─────────────────────────────────── */
+    #pwd-modal {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); z-index: 500;
+      align-items: center; justify-content: center;
     }
-
-    .step-text {
-      font-size: 13px;
-      color: #334155;
-      line-height: 1.5;
+    #pwd-modal.open { display: flex; }
+    .pwd-box {
+      background: #0d3045; border: 1px solid #1a3d50;
+      border-radius: 14px; padding: 28px 28px 24px;
+      width: 100%; max-width: 340px;
     }
-
-    .step-text code {
-      background: #f1f5f9;
-      color: #2563eb;
-      padding: 1px 6px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-family: monospace;
-    }
-
-    /* iframe */
-    #viewer {
-      flex: 1;
-      border: none;
-      display: none;
-      width: 100%;
-      height: 100%;
-    }
-
-    /* Loading bar */
-    #loading {
-      height: 3px;
-      background: linear-gradient(90deg, #2563eb 0%, #60a5fa 50%, #2563eb 100%);
-      background-size: 200% 100%;
-      animation: shimmer 1.2s infinite linear;
-      display: none;
-      flex-shrink: 0;
-    }
-
-    @keyframes shimmer {
-      0%   { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
+    .pwd-box h3 { font-size: 16px; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+    .pwd-box p  { font-size: 12px; color: #4a7a96; margin-bottom: 18px; }
+    .pwd-row    { display: flex; gap: 8px; margin-top: 12px; }
+    .btn-cancel { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #1a3d50; background: transparent; color: #7dd3fc; font-size: 13px; cursor: pointer; }
+    .btn-save   { flex: 2; padding: 10px; border-radius: 8px; border: none; background: linear-gradient(135deg, #2563eb, #1e40af); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
   </style>
 </head>
 <body>
 
-  <!-- ── Sidebar ──────────────────────────────────────────────────── -->
-  <div id="sidebar">
-    <div class="sb-header">
-      <div class="sb-brand">
-        <div class="sb-brand-icon">M&amp;A</div>
-        <div>
-          <div class="sb-brand-name">M&amp;A Platform</div>
-          <div class="sb-brand-sub">Análises de Aquisição</div>
+  <!-- ── Auth Gate ─────────────────────────────────────────────────── -->
+  <div id="auth-gate">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="login-icon">M&amp;A</div>
+        <div class="login-title">M&amp;A Analysis Platform</div>
+        <div class="login-sub">Acesso restrito</div>
+      </div>
+
+      <form id="login-form">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="l-email" class="form-input" placeholder="email@empresa.com" required autocomplete="email">
         </div>
-      </div>
-      <div class="sb-search-wrap">
-        <span class="sb-search-icon">&#128269;</span>
-        <input type="text" id="search" class="sb-search" placeholder="Pesquisar empresa ou sector...">
-      </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="l-password" class="form-input" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button type="submit" id="login-btn" class="btn-primary">Entrar</button>
+      </form>
+
+      <div class="login-divider">ou</div>
+      <button id="magic-btn" class="btn-ghost">Enviar link de acesso por email</button>
+      <div id="auth-msg" class="auth-msg"></div>
     </div>
+  </div>
 
-    <div class="sb-section-label" id="section-label">Análises</div>
-    <div id="analysis-list"></div>
-
-    <div class="sb-footer">
-      <div class="sb-footer-hint">
-        Para adicionar: <code>python analyze.py ficheiro.xlsx</code>
+  <!-- ── Set Password Modal ────────────────────────────────────────── -->
+  <div id="pwd-modal">
+    <div class="pwd-box">
+      <h3>Definir password</h3>
+      <p>Define uma password para entrar directamente nas próximas vezes.</p>
+      <div class="form-group">
+        <label>Nova password</label>
+        <input type="password" id="new-pwd" class="form-input" placeholder="Mínimo 8 caracteres">
+      </div>
+      <div class="form-group">
+        <label>Confirmar password</label>
+        <input type="password" id="confirm-pwd" class="form-input" placeholder="Repete a password">
+      </div>
+      <div id="pwd-msg" class="auth-msg"></div>
+      <div class="pwd-row">
+        <button class="btn-cancel" onclick="document.getElementById('pwd-modal').classList.remove('open')">Mais tarde</button>
+        <button class="btn-save" onclick="savePassword()">Guardar</button>
       </div>
     </div>
   </div>
 
-  <!-- ── Main ─────────────────────────────────────────────────────── -->
-  <div id="main">
-    <div id="loading"></div>
+  <!-- ── Main App ──────────────────────────────────────────────────── -->
+  <div id="app">
+    <div id="sidebar">
+      <div class="sb-header">
+        <div class="sb-brand">
+          <div class="sb-brand-icon">M&amp;A</div>
+          <div>
+            <div class="sb-brand-name">M&amp;A Platform</div>
+            <div class="sb-brand-sub">Análises de Aquisição</div>
+          </div>
+        </div>
+        <div class="sb-search-wrap">
+          <span class="sb-search-icon">&#128269;</span>
+          <input type="text" id="search" class="sb-search" placeholder="Pesquisar empresa ou sector...">
+        </div>
+      </div>
 
-    <div id="welcome">
-      <div class="welcome-logo">M&amp;A</div>
-      <div class="welcome-title">M&amp;A Analysis Platform</div>
-      <p class="welcome-sub">Plataforma de análise para decisões de aquisição. Selecciona uma análise no menu lateral.</p>
-      <div class="welcome-steps">
-        <div class="welcome-step">
-          <div class="step-num">1</div>
-          <div class="step-text">Partilha o ficheiro financeiro nesta janela (<code>.xlsx</code>, <code>.csv</code>, <code>.pdf</code>)</div>
+      <div class="sb-section-label" id="section-label">Análises</div>
+      <div id="analysis-list"></div>
+
+      <div class="sb-user">
+        <span class="sb-user-email" id="user-email-display"></span>
+        <div class="sb-user-actions">
+          <button class="sb-btn admin" id="admin-btn" onclick="window.location.href='admin.html'" style="display:none">&#9881; Admin</button>
+          <button class="sb-btn" onclick="setPwdModal()">&#128274;</button>
+          <button class="sb-btn" id="logout-btn">Sair</button>
         </div>
-        <div class="welcome-step">
-          <div class="step-num">2</div>
-          <div class="step-text">Claude analisa com IA e cria o portal automaticamente</div>
-        </div>
-        <div class="welcome-step">
-          <div class="step-num">3</div>
-          <div class="step-text">A análise aparece no menu lateral e fica disponível para partilha via URL</div>
+      </div>
+
+      <div class="sb-footer">
+        <div class="sb-footer-hint">
+          Para adicionar: <code>python analyze.py ficheiro.xlsx</code>
         </div>
       </div>
     </div>
 
-    <iframe id="viewer" title="Análise M&amp;A"></iframe>
+    <div id="main">
+      <div id="loading"></div>
+
+      <div id="welcome">
+        <div class="welcome-logo">M&amp;A</div>
+        <div class="welcome-title">M&amp;A Analysis Platform</div>
+        <p class="welcome-sub">Selecciona uma análise no menu lateral.</p>
+        <div class="welcome-steps">
+          <div class="welcome-step">
+            <div class="step-num">1</div>
+            <div class="step-text">Partilha o ficheiro financeiro nesta janela (<code>.xlsx</code>, <code>.csv</code>, <code>.pdf</code>)</div>
+          </div>
+          <div class="welcome-step">
+            <div class="step-num">2</div>
+            <div class="step-text">Claude analisa com IA e cria o portal automaticamente</div>
+          </div>
+          <div class="welcome-step">
+            <div class="step-num">3</div>
+            <div class="step-text">A análise aparece no menu lateral e fica disponível para partilha</div>
+          </div>
+        </div>
+      </div>
+
+      <iframe id="viewer" title="Análise M&amp;A"></iframe>
+    </div>
   </div>
 
   <script>
-    let allAnalyses = [];
-    let activeId = null;
+    /* ── Supabase init ──────────────────────────────────────────────── */
+    const SUPA_URL = 'https://xqkrafruaikukgkjrswv.supabase.co'
+    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhxa3JhZnJ1YWlrdWtna2pyc3d2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4ODA2MzYsImV4cCI6MjA5NTQ1NjYzNn0.ZL_cm50675xsh2DpAsAk4HD3Ws0UUvgHVFNq5qTRV5c'
+    const db = supabase.createClient(SUPA_URL, SUPA_KEY)
 
-    /* ── Formatters ──────────────────────────────────────────────── */
+    /* ── State ──────────────────────────────────────────────────────── */
+    let allAnalyses = []
+    let activeId    = null
+
+    /* ── Auth listeners ─────────────────────────────────────────────── */
+    db.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        await initApp(session.user)
+        // Show set-password prompt after magic link login
+        if (event === 'SIGNED_IN' && session.user.app_metadata.provider === 'email'
+            && !session.user.user_metadata.has_password) {
+          setTimeout(() => document.getElementById('pwd-modal').classList.add('open'), 800)
+        }
+      } else {
+        showAuthGate()
+      }
+    })
+
+    /* ── Auth gate ──────────────────────────────────────────────────── */
+    function showAuthGate() {
+      document.getElementById('auth-gate').style.display = 'flex'
+      document.getElementById('app').style.display       = 'none'
+    }
+
+    document.getElementById('login-form').addEventListener('submit', async e => {
+      e.preventDefault()
+      const email = document.getElementById('l-email').value.trim()
+      const pwd   = document.getElementById('l-password').value
+      const btn   = document.getElementById('login-btn')
+      btn.disabled = true; btn.textContent = 'A entrar...'
+      showMsg('', '')
+      const { error } = await db.auth.signInWithPassword({ email, password: pwd })
+      if (error) {
+        showMsg(error.message === 'Invalid login credentials'
+          ? 'Email ou password incorrectos.' : error.message, 'error')
+        btn.disabled = false; btn.textContent = 'Entrar'
+      }
+    })
+
+    document.getElementById('magic-btn').addEventListener('click', async () => {
+      const email = document.getElementById('l-email').value.trim()
+      if (!email) { showMsg('Introduz o teu email primeiro.', 'error'); return }
+      const btn = document.getElementById('magic-btn')
+      btn.disabled = true; btn.textContent = 'A enviar...'
+      const { error } = await db.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: 'https://jsoaresomn.github.io/ma-platform/', shouldCreateUser: false }
+      })
+      if (error) {
+        showMsg(error.message, 'error')
+      } else {
+        showMsg('&#10003; Link enviado para ' + email + '. Verifica o teu email.', 'success')
+      }
+      btn.disabled = false; btn.textContent = 'Enviar link de acesso por email'
+    })
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await db.auth.signOut()
+    })
+
+    function showMsg(text, type) {
+      const el = document.getElementById('auth-msg')
+      el.className = 'auth-msg' + (type ? ' ' + type : '')
+      el.innerHTML = text
+    }
+
+    /* ── App init ───────────────────────────────────────────────────── */
+    async function initApp(user) {
+      // Check admin
+      const { data: adminRow } = await db.from('admins').select('email').eq('email', user.email).maybeSingle()
+      const isAdmin = !!adminRow
+
+      // Get allowed analyses (null = all for admins)
+      let allowedIds = null
+      if (!isAdmin) {
+        const { data: access } = await db.from('analysis_access').select('analysis_id').eq('user_email', user.email)
+        allowedIds = (access || []).map(r => r.analysis_id)
+      }
+
+      // Show app
+      document.getElementById('auth-gate').style.display        = 'none'
+      document.getElementById('app').style.display              = 'flex'
+      document.getElementById('user-email-display').textContent = user.email
+      document.getElementById('admin-btn').style.display        = isAdmin ? 'inline-flex' : 'none'
+
+      boot(allowedIds)
+    }
+
+    /* ── Set password ───────────────────────────────────────────────── */
+    function setPwdModal() { document.getElementById('pwd-modal').classList.add('open') }
+
+    async function savePassword() {
+      const pwd1 = document.getElementById('new-pwd').value
+      const pwd2 = document.getElementById('confirm-pwd').value
+      const msg  = document.getElementById('pwd-msg')
+      if (pwd1.length < 8) { msg.className = 'auth-msg error'; msg.textContent = 'Mínimo 8 caracteres.'; return }
+      if (pwd1 !== pwd2)   { msg.className = 'auth-msg error'; msg.textContent = 'As passwords não coincidem.'; return }
+      const { error } = await db.auth.updateUser({ password: pwd1, data: { has_password: true } })
+      if (error) { msg.className = 'auth-msg error'; msg.textContent = error.message; return }
+      msg.className = 'auth-msg success'; msg.textContent = '✓ Password definida com sucesso!'
+      setTimeout(() => document.getElementById('pwd-modal').classList.remove('open'), 1500)
+    }
+
+    /* ── Formatters ─────────────────────────────────────────────────── */
     function fmtK(v) {
-      if (v == null || isNaN(v)) return '--';
-      if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1).replace('.0','') + 'M';
-      return v.toFixed(0) + 'k';
+      if (v == null || isNaN(v)) return '--'
+      if (Math.abs(v) >= 1000) return (v/1000).toFixed(1).replace('.0','') + 'M'
+      return v.toFixed(0) + 'k'
     }
-
-    function fmtPct(v) {
-      if (v == null || isNaN(v)) return '--';
-      return (v * 100).toFixed(1) + '%';
-    }
-
+    function fmtPct(v) { return (v == null || isNaN(v)) ? '--' : (v*100).toFixed(1)+'%' }
     function fmtDate(s) {
-      if (!s) return '';
-      // "2026-05-26" → "Mai 26"  /  "2026-05" → "Mai 26"
-      const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-      const parts = s.split('-');
-      const mo = months[parseInt(parts[1], 10) - 1] || parts[1];
-      return parts[2] ? mo + ' ' + parts[2] : mo + ' ' + parts[0].slice(2);
+      if (!s) return ''
+      const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+      const parts = s.split('-')
+      const mo = months[parseInt(parts[1],10)-1] || parts[1]
+      return parts[2] ? mo+' '+parts[2] : mo+' '+parts[0].slice(2)
     }
 
-    /* ── Card rendering ──────────────────────────────────────────── */
+    /* ── Card rendering ─────────────────────────────────────────────── */
     function renderCard(a) {
-      const margin = (a.ltm_ebitda && a.ltm_revenue)
-        ? fmtPct(a.ltm_ebitda / a.ltm_revenue) : '--';
-      const cur = a.currency || 'BRL';
-      const isActive = a.id === activeId;
-
+      const margin = (a.ltm_ebitda && a.ltm_revenue) ? fmtPct(a.ltm_ebitda/a.ltm_revenue) : '--'
+      const cur    = a.currency || 'BRL'
       return `
-        <div class="a-card ${isActive ? 'active' : ''}" onclick="loadAnalysis('${a.id}')" data-id="${a.id}">
+        <div class="a-card ${a.id===activeId?'active':''}" onclick="loadAnalysis('${a.id}')" data-id="${a.id}">
           <div class="a-card-top">
             <div class="a-company" title="${a.company_name}">${a.company_name}</div>
-            <div class="a-date">${fmtDate(a.date_created || a.date || '')}</div>
+            <div class="a-date">${fmtDate(a.date_created||a.date||'')}</div>
           </div>
           ${a.sector ? `<div class="a-sector">${a.sector}</div>` : ''}
           <div class="a-metrics">
-            <div>
-              <div class="a-metric-label">Receita LTM</div>
-              <div class="a-metric-value blue">${cur} ${fmtK(a.ltm_revenue)}</div>
-            </div>
-            <div>
-              <div class="a-metric-label">Mg. EBITDA</div>
-              <div class="a-metric-value">${margin}</div>
-            </div>
-            <div>
-              <div class="a-metric-label">EV Base</div>
-              <div class="a-metric-value green">${a.ev_base ? cur + ' ' + fmtK(a.ev_base) : '--'}</div>
-            </div>
+            <div><div class="a-metric-label">Receita LTM</div><div class="a-metric-value blue">${cur} ${fmtK(a.ltm_revenue)}</div></div>
+            <div><div class="a-metric-label">Mg. EBITDA</div><div class="a-metric-value">${margin}</div></div>
+            <div><div class="a-metric-label">EV Base</div><div class="a-metric-value green">${a.ev_base?cur+' '+fmtK(a.ev_base):'--'}</div></div>
           </div>
-        </div>`;
+        </div>`
     }
 
-    /* ── List rendering ──────────────────────────────────────────── */
+    /* ── List rendering ─────────────────────────────────────────────── */
     function filterList() {
-      const q = document.getElementById('search').value.toLowerCase().trim();
-      if (!q) return allAnalyses;
-      return allAnalyses.filter(a =>
-        a.company_name.toLowerCase().includes(q) ||
-        (a.sector || '').toLowerCase().includes(q)
-      );
+      const q = document.getElementById('search').value.toLowerCase().trim()
+      return q ? allAnalyses.filter(a => a.company_name.toLowerCase().includes(q) || (a.sector||'').toLowerCase().includes(q)) : allAnalyses
     }
 
     function renderList(list) {
-      const el = document.getElementById('analysis-list');
-      const label = document.getElementById('section-label');
-      const n = list.length;
-      label.textContent = n + (n === 1 ? ' análise' : ' análises');
-
-      if (!n) {
-        el.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-icon">&#128269;</div>
-            <p>Nenhuma análise encontrada.</p>
-          </div>`;
-        return;
-      }
-      el.innerHTML = list.map(renderCard).join('');
+      const el    = document.getElementById('analysis-list')
+      const label = document.getElementById('section-label')
+      label.textContent = list.length + (list.length===1?' análise':' análises')
+      el.innerHTML = list.length
+        ? list.map(renderCard).join('')
+        : `<div class="empty-state"><div class="empty-state-icon">&#128274;</div><p>Sem acesso a análises.<br>Contacta o administrador.</p></div>`
     }
 
-    /* ── Load analysis into iframe ───────────────────────────────── */
+    /* ── Load analysis ──────────────────────────────────────────────── */
     function loadAnalysis(id) {
-      const a = allAnalyses.find(x => x.id === id);
-      if (!a) return;
-
-      activeId = id;
-      renderList(filterList());
-
-      const bar = document.getElementById('loading');
-      const welcome = document.getElementById('welcome');
-      const viewer = document.getElementById('viewer');
-
-      welcome.style.display = 'none';
-      bar.style.display = 'block';
-      viewer.style.display = 'none';
-
-      const src = a.path || (a.id + '/index.html');
-      viewer.onload = function () {
-        bar.style.display = 'none';
-        viewer.style.display = 'block';
-      };
-      viewer.src = src + '?t=' + Date.now();
+      const a = allAnalyses.find(x => x.id===id)
+      if (!a) return
+      activeId = id
+      renderList(filterList())
+      const bar     = document.getElementById('loading')
+      const welcome = document.getElementById('welcome')
+      const viewer  = document.getElementById('viewer')
+      welcome.style.display = 'none'
+      bar.style.display     = 'block'
+      viewer.style.display  = 'none'
+      viewer.onload = () => { bar.style.display='none'; viewer.style.display='block' }
+      viewer.src = (a.path || a.id+'/index.html') + '?t=' + Date.now()
     }
 
-    /* ── Search ──────────────────────────────────────────────────── */
-    document.getElementById('search').addEventListener('input', () => {
-      renderList(filterList());
-    });
+    document.getElementById('search').addEventListener('input', () => renderList(filterList()))
 
-    /* ── Boot: fetch manifest ────────────────────────────────────── */
-    function boot() {
+    /* ── Boot ───────────────────────────────────────────────────────── */
+    function boot(allowedIds) {
       fetch('manifest.json?t=' + Date.now())
-        .then(r => {
-          if (!r.ok) throw new Error('HTTP ' + r.status);
-          return r.json();
-        })
+        .then(r => { if (!r.ok) throw new Error('HTTP '+r.status); return r.json() })
         .then(data => {
-          allAnalyses = (data.analyses || []).slice().sort((a, b) =>
-            (b.date_created || b.date || '').localeCompare(a.date_created || a.date || '')
-          );
-          renderList(allAnalyses);
-          if (allAnalyses.length) loadAnalysis(allAnalyses[0].id);
+          let list = (data.analyses||[]).slice().sort((a,b)=>
+            (b.date_created||b.date||'').localeCompare(a.date_created||a.date||''))
+          if (allowedIds !== null) list = list.filter(a => allowedIds.includes(a.id))
+          allAnalyses = list
+          renderList(list)
+          if (list.length) loadAnalysis(list[0].id)
         })
         .catch(err => {
-          document.getElementById('analysis-list').innerHTML = `
-            <div class="empty-state">
-              <div class="empty-state-icon">&#9888;</div>
-              <p>Erro ao carregar análises.<br><small>${err.message}</small></p>
-              <code>python analyze.py ficheiro.xlsx</code>
-            </div>`;
-          document.getElementById('section-label').textContent = '0 análises';
-        });
+          document.getElementById('analysis-list').innerHTML =
+            `<div class="empty-state"><div class="empty-state-icon">&#9888;</div><p>Erro: ${err.message}</p></div>`
+          document.getElementById('section-label').textContent = '0 análises'
+        })
     }
-
-    boot();
   </script>
 </body>
 </html>

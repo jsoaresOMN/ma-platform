@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — M&amp;A Platform</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+
+    /* ── Header ──────────────────────────────────────────────── */
+    .top-bar {
+      background: #0a2535;
+      border-bottom: 1px solid #1a3d50;
+      padding: 0 28px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .top-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .top-icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, #2563eb, #1e40af);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 800; color: #fff;
+    }
+
+    .top-name { font-size: 14px; font-weight: 700; color: #f1f5f9; }
+    .top-badge {
+      font-size: 10px; padding: 2px 8px; border-radius: 20px;
+      background: rgba(251,191,36,0.15); color: #fbbf24;
+      border: 1px solid rgba(251,191,36,0.3); font-weight: 600;
+    }
+
+    .top-right { display: flex; align-items: center; gap: 10px; }
+    .top-user  { font-size: 12px; color: #4a7a96; }
+
+    .btn-sm {
+      padding: 6px 14px; border-radius: 7px; font-size: 12px; font-weight: 500;
+      cursor: pointer; transition: all 0.12s;
+    }
+    .btn-outline { background: transparent; border: 1px solid #1a3d50; color: #7dd3fc; }
+    .btn-outline:hover { background: rgba(56,189,248,0.1); border-color: #38bdf8; }
+    .btn-primary { background: linear-gradient(135deg, #2563eb, #1e40af); border: none; color: #fff; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Layout ──────────────────────────────────────────────── */
+    .page { max-width: 960px; margin: 0 auto; padding: 28px 20px; }
+
+    .section-title {
+      font-size: 13px; font-weight: 700; color: #475569;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      margin-bottom: 14px;
+    }
+
+    /* ── Invite card ─────────────────────────────────────────── */
+    .invite-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 22px 24px;
+      margin-bottom: 28px;
+    }
+
+    .invite-card h2 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .invite-card p  { font-size: 13px; color: #64748b; margin-bottom: 18px; }
+
+    .invite-row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+
+    .invite-email {
+      flex: 1; min-width: 240px;
+      background: #f8fafc; border: 1px solid #e2e8f0;
+      border-radius: 8px; padding: 10px 14px;
+      font-size: 14px; color: #1e293b;
+      outline: none; transition: border-color 0.2s;
+    }
+    .invite-email:focus { border-color: #2563eb; background: #fff; }
+    .invite-email::placeholder { color: #94a3b8; }
+
+    /* access checkboxes inline */
+    .invite-analyses {
+      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+      flex: 2; min-width: 200px;
+    }
+
+    .analysis-chip {
+      display: flex; align-items: center; gap: 5px;
+      background: #f1f5f9; border: 1px solid #e2e8f0;
+      border-radius: 20px; padding: 4px 10px 4px 8px;
+      cursor: pointer; font-size: 12px; color: #475569;
+      transition: all 0.12s; user-select: none;
+    }
+    .analysis-chip:hover { border-color: #2563eb; color: #2563eb; }
+    .analysis-chip.selected { background: rgba(37,99,235,0.1); border-color: #2563eb; color: #2563eb; font-weight: 500; }
+    .analysis-chip input { display: none; }
+
+    .invite-msg { margin-top: 10px; font-size: 12px; padding: 8px 12px; border-radius: 7px; display: none; }
+    .invite-msg.success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; display: block; }
+    .invite-msg.error   { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; display: block; }
+    .invite-msg.info    { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; display: block; }
+
+    /* ── Access matrix ───────────────────────────────────────── */
+    .matrix-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .matrix-header {
+      padding: 18px 24px 14px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .matrix-header h2 { font-size: 16px; font-weight: 700; }
+    .matrix-header p  { font-size: 13px; color: #64748b; margin-top: 3px; }
+
+    .matrix-table { width: 100%; border-collapse: collapse; }
+
+    .matrix-table th {
+      padding: 10px 16px;
+      background: #f8fafc;
+      font-size: 11px; font-weight: 700;
+      color: #64748b; text-transform: uppercase; letter-spacing: 0.06em;
+      text-align: left; border-bottom: 1px solid #e2e8f0;
+    }
+
+    .matrix-table th.analysis-col { text-align: center; max-width: 120px; padding: 10px 8px; }
+
+    .matrix-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 13px;
+    }
+
+    .matrix-table tr:last-child td { border-bottom: none; }
+    .matrix-table tr:hover td { background: #f8fafc; }
+
+    .user-email-cell { font-weight: 500; color: #1e293b; }
+    .user-email-cell .user-badge { font-size: 10px; padding: 2px 6px; border-radius: 10px; margin-left: 6px; font-weight: 500; }
+    .user-badge.admin { background: rgba(251,191,36,0.15); color: #b45309; }
+
+    .access-cell { text-align: center; }
+
+    /* Toggle switch */
+    .toggle {
+      position: relative; display: inline-block;
+      width: 36px; height: 20px; cursor: pointer;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: #e2e8f0; border-radius: 20px;
+      transition: background 0.2s;
+    }
+    .toggle-thumb {
+      position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px;
+      background: #fff; border-radius: 50%;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle input:checked ~ .toggle-track { background: #2563eb; }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(16px); }
+
+    /* Loading / empty states */
+    .table-loading { text-align: center; padding: 40px; color: #94a3b8; font-size: 13px; }
+
+    /* Notification toast */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #1e293b; color: #f1f5f9;
+      padding: 12px 20px; border-radius: 10px;
+      font-size: 13px; opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.25s, transform 0.25s;
+      pointer-events: none; z-index: 999;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    /* Auth gate (reused from index) */
+    #auth-gate {
+      position: fixed; inset: 0;
+      background: linear-gradient(135deg, #061820, #0a2535);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000;
+    }
+    .access-denied {
+      text-align: center; color: #f1f5f9;
+    }
+    .access-denied .icon { font-size: 48px; margin-bottom: 12px; }
+    .access-denied h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .access-denied p  { font-size: 14px; color: #4a7a96; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+
+  <div id="auth-gate">
+    <div class="access-denied">
+      <div class="icon">&#128274;</div>
+      <h2>A verificar acesso...</h2>
+      <p>Aguarda enquanto validamos as tuas permissões.</p>
+    </div>
+  </div>
+
+  <div id="main-content" style="display:none">
+
+    <!-- Header -->
+    <div class="top-bar">
+      <a class="top-brand" href="index.html">
+        <div class="top-icon">M&amp;A</div>
+        <span class="top-name">M&amp;A Platform</span>
+        <span class="top-badge">Admin</span>
+      </a>
+      <div class="top-right">
+        <span class="top-user" id="admin-email"></span>
+        <button class="btn-sm btn-outline" onclick="db.auth.signOut().then(()=>window.location.href='index.html')">Sair</button>
+      </div>
+    </div>
+
+    <!-- Page -->
+    <div class="page">
+
+      <!-- Invite -->
+      <div class="section-title">Convidar Utilizador</div>
+      <div class="invite-card">
+        <h2>Adicionar utilizador</h2>
+        <p>Envia um link de acesso por email e selecciona os projectos a que o utilizador pode aceder.</p>
+        <div class="invite-row">
+          <input type="email" id="invite-email" class="invite-email" placeholder="email@empresa.com">
+          <div class="invite-analyses" id="invite-chips">
+            <!-- populated by JS -->
+          </div>
+          <button class="btn-sm btn-primary" id="invite-btn" onclick="inviteUser()">Convidar &rarr;</button>
+        </div>
+        <div id="invite-msg" class="invite-msg"></div>
+      </div>
+
+      <!-- Access matrix -->
+      <div class="section-title">Gestão de Acessos</div>
+      <div class="matrix-card">
+        <div class="matrix-header">
+          <h2>Utilizadores &amp; Projectos</h2>
+          <p>Activa ou desactiva o acesso de cada utilizador a cada análise.</p>
+        </div>
+        <div id="matrix-wrap">
+          <div class="table-loading">A carregar...</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <script>
+    const SUPA_URL = 'https://xqkrafruaikukgkjrswv.supabase.co'
+    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhxa3JhZnJ1YWlrdWtna2pyc3d2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4ODA2MzYsImV4cCI6MjA5NTQ1NjYzNn0.ZL_cm50675xsh2DpAsAk4HD3Ws0UUvgHVFNq5qTRV5c'
+    const db = supabase.createClient(SUPA_URL, SUPA_KEY)
+
+    let analyses   = []   // from manifest.json
+    let accessData = []   // from analysis_access table
+    let allUsers   = []   // unique emails from accessData
+
+    /* ── Auth check ─────────────────────────────────────────── */
+    db.auth.onAuthStateChange(async (event, session) => {
+      if (!session) { window.location.href = 'index.html'; return }
+
+      const { data: adminRow } = await db.from('admins').select('email').eq('email', session.user.email).maybeSingle()
+      if (!adminRow) {
+        document.getElementById('auth-gate').innerHTML = `
+          <div class="access-denied">
+            <div class="icon">&#128683;</div>
+            <h2>Acesso negado</h2>
+            <p>Não tens permissões de administrador.</p>
+            <a href="index.html" style="color:#38bdf8;font-size:14px;">&#8592; Voltar ao hub</a>
+          </div>`
+        return
+      }
+
+      document.getElementById('auth-gate').style.display   = 'none'
+      document.getElementById('main-content').style.display = 'block'
+      document.getElementById('admin-email').textContent    = session.user.email
+
+      await loadData()
+    })
+
+    /* ── Load data ──────────────────────────────────────────── */
+    async function loadData() {
+      // Load analyses from manifest
+      const r    = await fetch('manifest.json?t=' + Date.now())
+      const data = await r.json()
+      analyses = (data.analyses || []).sort((a,b) => a.company_name.localeCompare(b.company_name))
+
+      // Load all access rows (admin sees all via RLS policy)
+      const { data: rows } = await db.from('analysis_access').select('*').order('user_email')
+      accessData = rows || []
+
+      // Unique users
+      allUsers = [...new Set(accessData.map(r => r.user_email))].sort()
+
+      renderInviteChips()
+      renderMatrix()
+    }
+
+    /* ── Invite chips ───────────────────────────────────────── */
+    function renderInviteChips() {
+      document.getElementById('invite-chips').innerHTML = analyses.map(a => `
+        <label class="analysis-chip" id="chip-${a.id}">
+          <input type="checkbox" value="${a.id}" onchange="toggleChip(this)">
+          ${a.company_name}
+        </label>`).join('')
+    }
+
+    function toggleChip(cb) {
+      const chip = cb.closest('.analysis-chip')
+      chip.classList.toggle('selected', cb.checked)
+    }
+
+    /* ── Invite user ────────────────────────────────────────── */
+    async function inviteUser() {
+      const email    = document.getElementById('invite-email').value.trim().toLowerCase()
+      const selected = [...document.querySelectorAll('#invite-chips input:checked')].map(c => c.value)
+      const msg      = document.getElementById('invite-msg')
+      const btn      = document.getElementById('invite-btn')
+
+      msg.className = 'invite-msg'
+      if (!email)          { showInviteMsg('Introduz um email.', 'error'); return }
+      if (!email.includes('@')) { showInviteMsg('Email inválido.', 'error'); return }
+
+      btn.disabled = true; btn.textContent = 'A convidar...'
+
+      // Send magic link
+      const { error: authErr } = await db.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: 'https://jsoaresomn.github.io/ma-platform/',
+          shouldCreateUser: true
+        }
+      })
+
+      if (authErr) {
+        showInviteMsg('Erro ao enviar email: ' + authErr.message, 'error')
+        btn.disabled = false; btn.textContent = 'Convidar →'
+        return
+      }
+
+      // Grant access to selected analyses
+      if (selected.length > 0) {
+        const rows = selected.map(aid => ({
+          user_email:    email,
+          analysis_id:   aid,
+          analysis_name: analyses.find(a => a.id === aid)?.company_name || aid
+        }))
+        const { error: dbErr } = await db.from('analysis_access').upsert(rows, { onConflict: 'user_email,analysis_id' })
+        if (dbErr) { showInviteMsg('Email enviado mas erro ao guardar acessos: ' + dbErr.message, 'error'); btn.disabled = false; btn.textContent = 'Convidar →'; return }
+      }
+
+      showInviteMsg(`✓ Convite enviado para ${email}${selected.length ? ' com acesso a ' + selected.length + ' projecto(s)' : ''}.`, 'success')
+      document.getElementById('invite-email').value = ''
+      document.querySelectorAll('#invite-chips input:checked').forEach(c => { c.checked = false; c.closest('.analysis-chip').classList.remove('selected') })
+      btn.disabled = false; btn.textContent = 'Convidar →'
+
+      await loadData()
+    }
+
+    function showInviteMsg(text, type) {
+      const el = document.getElementById('invite-msg')
+      el.className = 'invite-msg ' + type
+      el.textContent = text
+    }
+
+    /* ── Access matrix ──────────────────────────────────────── */
+    function hasAccess(email, analysisId) {
+      return accessData.some(r => r.user_email === email && r.analysis_id === analysisId)
+    }
+
+    function renderMatrix() {
+      const wrap = document.getElementById('matrix-wrap')
+
+      if (!allUsers.length) {
+        wrap.innerHTML = `<div class="table-loading">Nenhum utilizador ainda. Convida alguém acima.</div>`
+        return
+      }
+
+      const analysisCols = analyses.map(a =>
+        `<th class="analysis-col">${a.company_name}</th>`).join('')
+
+      const rows = allUsers.map(email => {
+        const cells = analyses.map(a => `
+          <td class="access-cell">
+            <label class="toggle">
+              <input type="checkbox" ${hasAccess(email, a.id) ? 'checked' : ''}
+                onchange="toggleAccess('${email}','${a.id}','${a.company_name}',this.checked)">
+              <div class="toggle-track"></div>
+              <div class="toggle-thumb"></div>
+            </label>
+          </td>`).join('')
+
+        return `
+          <tr>
+            <td class="user-email-cell">${email}</td>
+            ${cells}
+          </tr>`
+      }).join('')
+
+      wrap.innerHTML = `
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th>Utilizador</th>
+              ${analysisCols}
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>`
+    }
+
+    /* ── Toggle access ──────────────────────────────────────── */
+    async function toggleAccess(email, analysisId, analysisName, grant) {
+      if (grant) {
+        const { error } = await db.from('analysis_access').upsert(
+          { user_email: email, analysis_id: analysisId, analysis_name: analysisName },
+          { onConflict: 'user_email,analysis_id' }
+        )
+        if (error) { toast('Erro: ' + error.message); return }
+        accessData.push({ user_email: email, analysis_id: analysisId })
+        toast('Acesso concedido: ' + email.split('@')[0] + ' → ' + analysisName)
+      } else {
+        const { error } = await db.from('analysis_access')
+          .delete().eq('user_email', email).eq('analysis_id', analysisId)
+        if (error) { toast('Erro: ' + error.message); return }
+        accessData = accessData.filter(r => !(r.user_email===email && r.analysis_id===analysisId))
+        toast('Acesso removido: ' + email.split('@')[0] + ' → ' + analysisName)
+      }
+    }
+
+    /* ── Toast ──────────────────────────────────────────────── */
+    function toast(msg) {
+      const el = document.getElementById('toast')
+      el.textContent = msg
+      el.classList.add('show')
+      setTimeout(() => el.classList.remove('show'), 2800)
+    }
+  </script>
+</body>
+</html>
