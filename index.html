@@ -474,14 +474,18 @@
 
     /* ── App init ───────────────────────────────────────────────────── */
     async function initApp(user) {
+      console.log('[MA] initApp:', user.email)
+
       // Check admin
-      const { data: adminRow } = await db.from('admins').select('email').eq('email', user.email).maybeSingle()
+      const { data: adminRow, error: adminErr } = await db.from('admins').select('email').eq('email', user.email).maybeSingle()
+      console.log('[MA] admin check:', adminRow, adminErr)
       const isAdmin = !!adminRow
 
       // Get allowed analyses (null = all for admins)
       let allowedIds = null
       if (!isAdmin) {
-        const { data: access } = await db.from('analysis_access').select('analysis_id').eq('user_email', user.email)
+        const { data: access, error: accessErr } = await db.from('analysis_access').select('analysis_id').eq('user_email', user.email)
+        console.log('[MA] access check:', access, accessErr)
         allowedIds = (access || []).map(r => r.analysis_id)
       }
 
@@ -491,6 +495,7 @@
       document.getElementById('user-email-display').textContent = user.email
       document.getElementById('admin-btn').style.display        = isAdmin ? 'inline-flex' : 'none'
 
+      console.log('[MA] booting, isAdmin:', isAdmin, 'allowedIds:', allowedIds)
       boot(allowedIds)
     }
 
