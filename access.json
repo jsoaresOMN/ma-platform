@@ -1,4 +1,8 @@
 {
   "version": 1,
-  "users": {}
+  "users": {
+    "alexandru.iliescu@omnibees.com": [
+      "ask-suite_2026-05"
+    ]
+  }
 }
