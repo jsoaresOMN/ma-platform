@@ -242,6 +242,19 @@
     <!-- Page -->
     <div class="page">
 
+      <!-- GitHub Token config -->
+      <div id="token-banner" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-size:18px">🔑</span>
+        <div style="flex:1;min-width:200px">
+          <div style="font-size:13px;font-weight:600;color:#1e293b;margin-bottom:2px">GitHub Token</div>
+          <div style="font-size:12px;color:#64748b">Necessário para gravar premissas nas análises. Inserido uma vez, guardado automaticamente.</div>
+        </div>
+        <input type="password" id="gh-token-input" placeholder="ghp_xxxxxxxxxxxx"
+          style="flex:1;min-width:220px;max-width:320px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:13px;font-family:monospace;outline:none">
+        <button onclick="saveGhToken()" class="btn-sm btn-primary">Guardar token</button>
+        <span id="token-status" style="font-size:12px;color:#10b981"></span>
+      </div>
+
       <!-- Invite -->
       <div class="section-title">Adicionar Utilizador</div>
       <div class="invite-card">
@@ -320,6 +333,7 @@
       document.getElementById('auth-gate').style.display    = 'none'
       document.getElementById('main-content').style.display = 'block'
       document.getElementById('admin-email').textContent    = session.user.email
+      initTokenBanner()
       await loadData()
     })
 
@@ -387,6 +401,28 @@
 
     function toggleChip(cb) {
       cb.closest('.analysis-chip').classList.toggle('selected', cb.checked)
+    }
+
+    /* ── GitHub token setup ─────────────────────────────────── */
+    function initTokenBanner() {
+      const banner = document.getElementById('token-banner')
+      banner.style.display = 'flex'
+      const stored = localStorage.getItem('ma_gh_token')
+      if (stored) {
+        document.getElementById('token-status').textContent = '✓ Token configurado'
+        document.getElementById('gh-token-input').placeholder = '••••••••••••••••••••'
+      }
+    }
+
+    function saveGhToken() {
+      const val = document.getElementById('gh-token-input').value.trim()
+      if (!val) return
+      localStorage.setItem('ma_gh_token', val)
+      ghToken = val
+      document.getElementById('token-status').textContent = '✓ Guardado!'
+      document.getElementById('gh-token-input').value = ''
+      document.getElementById('gh-token-input').placeholder = '••••••••••••••••••••'
+      setTimeout(() => document.getElementById('token-status').textContent = '✓ Token configurado', 2000)
     }
 
     /* ── Temp password generator ────────────────────────────── */

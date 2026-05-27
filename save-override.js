@@ -66,11 +66,10 @@
 
   // ── Save overrides via GitHub API ───────────────────────────
   async function saveOverrides() {
-    let token = localStorage.getItem('ma_gh_token')
+    const token = localStorage.getItem('ma_gh_token')
     if (!token) {
-      token = prompt('GitHub Personal Access Token (scope: repo):')
-      if (!token) return
-      localStorage.setItem('ma_gh_token', token)
+      alert('Token GitHub não configurado.\nVai ao painel Admin → configura o token uma vez e fica guardado.')
+      return
     }
 
     const btn = document.getElementById('ma-save-btn')
