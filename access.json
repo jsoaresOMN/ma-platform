@@ -3,6 +3,11 @@
   "users": {
     "alexandru.iliescu@omnibees.com": [
       "ask-suite_2026-05"
+    ],
+    "luis.ferrinho@omnibees.com": [
+      "ask-suite_2026-05",
+      "project-aspen_2026-05",
+      "test-capere"
     ]
   }
 }
