@@ -280,12 +280,14 @@
     const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhxa3JhZnJ1YWlrdWtna2pyc3d2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4ODA2MzYsImV4cCI6MjA5NTQ1NjYzNn0.ZL_cm50675xsh2DpAsAk4HD3Ws0UUvgHVFNq5qTRV5c'
     const db = supabase.createClient(SUPA_URL, SUPA_KEY)
 
-    /* ── Admin list (keep in sync with index.html) ──────────── */
+    /* ── Config ─────────────────────────────────────────────── */
     const ADMIN_EMAILS = ['jose.soares@omnibees.com']
+    const GH_REPO      = 'jsoaresOMN/ma-platform'
+    const GH_FILE      = 'access.json'
 
-    let analyses   = []
-    let accessData = []
-    let allUsers   = []
+    let analyses  = []
+    let accessMap = {}   // { email: [analysisId, ...] }
+    let ghToken   = sessionStorage.getItem('gh_token') || ''
 
     /* ── Auth check ─────────────────────────────────────────── */
     let adminReady = false
@@ -293,7 +295,6 @@
     db.auth.onAuthStateChange(async (event, session) => {
       if (!session) { if (!adminReady) window.location.href = 'index.html'; return }
       if (adminReady) return
-
       adminReady = true
 
       const isAdmin = ADMIN_EMAILS.includes(session.user.email.toLowerCase())
@@ -311,40 +312,59 @@
       document.getElementById('auth-gate').style.display    = 'none'
       document.getElementById('main-content').style.display = 'block'
       document.getElementById('admin-email').textContent    = session.user.email
-
       await loadData()
     })
 
     /* ── Load data ──────────────────────────────────────────── */
     async function loadData() {
+      const [mRes, aRes] = await Promise.all([
+        fetch('manifest.json?t=' + Date.now()),
+        fetch('access.json?t='  + Date.now())
+      ])
+      const manifest = await mRes.json()
+      const access   = await aRes.json()
+
+      analyses  = (manifest.analyses || []).sort((a,b) => a.company_name.localeCompare(b.company_name))
+      accessMap = access.users || {}
+
+      renderInviteChips()
+      renderMatrix()
+    }
+
+    /* ── GitHub API helpers ─────────────────────────────────── */
+    async function getFileSha() {
+      const res = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`, {
+        headers: { Authorization: 'token ' + ghToken, Accept: 'application/vnd.github.v3+json' }
+      })
+      if (!res.ok) throw new Error('GitHub auth failed — verifica o token')
+      const d = await res.json()
+      return d.sha
+    }
+
+    async function saveAccessJson() {
+      if (!ghToken) {
+        ghToken = prompt('Introduz o teu GitHub Personal Access Token (repo scope):')
+        if (!ghToken) return false
+        sessionStorage.setItem('gh_token', ghToken)
+      }
       try {
-        // Load analyses from manifest
-        const r    = await fetch('manifest.json?t=' + Date.now())
-        const data = await r.json()
-        analyses = (data.analyses || []).sort((a,b) => a.company_name.localeCompare(b.company_name))
-
-        // Load all access rows with timeout
-        const result = await Promise.race([
-          db.from('analysis_access').select('*').order('user_email'),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 7000))
-        ])
-        accessData = result.data || []
-
-        // Unique users
-        allUsers = [...new Set(accessData.map(r => r.user_email))].sort()
-
-        renderInviteChips()
-        renderMatrix()
-      } catch (err) {
-        console.error('[Admin] loadData error:', err.message)
-        // Show empty state — still functional for inviting
-        analyses = analyses.length ? analyses : []
-        accessData = []
-        allUsers = []
-        renderInviteChips()
-        renderMatrix()
-        document.getElementById('matrix-wrap').innerHTML =
-          `<div class="table-loading" style="color:#f87171">Erro ao carregar acessos: ${err.message}.<br>Tenta recarregar a página.</div>`
+        const sha     = await getFileSha()
+        const content = btoa(unescape(encodeURIComponent(JSON.stringify({ version: 1, users: accessMap }, null, 2))))
+        const res = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`, {
+          method: 'PUT',
+          headers: { Authorization: 'token ' + ghToken, Accept: 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: 'Update access.json via admin panel', content, sha })
+        })
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.message || res.status)
+        }
+        return true
+      } catch (e) {
+        toast('Erro ao guardar: ' + e.message, true)
+        ghToken = ''
+        sessionStorage.removeItem('gh_token')
+        return false
       }
     }
 
@@ -358,55 +378,43 @@
     }
 
     function toggleChip(cb) {
-      const chip = cb.closest('.analysis-chip')
-      chip.classList.toggle('selected', cb.checked)
+      cb.closest('.analysis-chip').classList.toggle('selected', cb.checked)
     }
 
     /* ── Invite user ────────────────────────────────────────── */
     async function inviteUser() {
       const email    = document.getElementById('invite-email').value.trim().toLowerCase()
       const selected = [...document.querySelectorAll('#invite-chips input:checked')].map(c => c.value)
-      const msg      = document.getElementById('invite-msg')
       const btn      = document.getElementById('invite-btn')
 
-      msg.className = 'invite-msg'
-      if (!email)          { showInviteMsg('Introduz um email.', 'error'); return }
-      if (!email.includes('@')) { showInviteMsg('Email inválido.', 'error'); return }
+      if (!email || !email.includes('@')) { showInviteMsg('Email inválido.', 'error'); return }
 
       btn.disabled = true; btn.textContent = 'A convidar...'
 
-      // Send magic link
+      // Send magic link via Supabase
       const { error: authErr } = await db.auth.signInWithOtp({
         email,
-        options: {
-          emailRedirectTo: 'https://jsoaresomn.github.io/ma-platform/',
-          shouldCreateUser: true
-        }
+        options: { emailRedirectTo: 'https://jsoaresomn.github.io/ma-platform/', shouldCreateUser: true }
       })
-
       if (authErr) {
         showInviteMsg('Erro ao enviar email: ' + authErr.message, 'error')
         btn.disabled = false; btn.textContent = 'Convidar →'
         return
       }
 
-      // Grant access to selected analyses
+      // Grant access in access.json
       if (selected.length > 0) {
-        const rows = selected.map(aid => ({
-          user_email:    email,
-          analysis_id:   aid,
-          analysis_name: analyses.find(a => a.id === aid)?.company_name || aid
-        }))
-        const { error: dbErr } = await db.from('analysis_access').upsert(rows, { onConflict: 'user_email,analysis_id' })
-        if (dbErr) { showInviteMsg('Email enviado mas erro ao guardar acessos: ' + dbErr.message, 'error'); btn.disabled = false; btn.textContent = 'Convidar →'; return }
+        const current = accessMap[email] || []
+        accessMap[email] = [...new Set([...current, ...selected])]
+        const saved = await saveAccessJson()
+        if (!saved) { btn.disabled = false; btn.textContent = 'Convidar →'; return }
       }
 
-      showInviteMsg(`✓ Convite enviado para ${email}${selected.length ? ' com acesso a ' + selected.length + ' projecto(s)' : ''}.`, 'success')
+      showInviteMsg(`✓ Convite enviado para ${email}` + (selected.length ? ` com acesso a ${selected.length} projecto(s)` : '') + '.', 'success')
       document.getElementById('invite-email').value = ''
       document.querySelectorAll('#invite-chips input:checked').forEach(c => { c.checked = false; c.closest('.analysis-chip').classList.remove('selected') })
       btn.disabled = false; btn.textContent = 'Convidar →'
-
-      await loadData()
+      renderMatrix()
     }
 
     function showInviteMsg(text, type) {
@@ -417,73 +425,66 @@
 
     /* ── Access matrix ──────────────────────────────────────── */
     function hasAccess(email, analysisId) {
-      return accessData.some(r => r.user_email === email && r.analysis_id === analysisId)
+      return (accessMap[email] || []).includes(analysisId)
     }
 
     function renderMatrix() {
-      const wrap = document.getElementById('matrix-wrap')
+      const wrap     = document.getElementById('matrix-wrap')
+      const allUsers = Object.keys(accessMap).sort()
 
       if (!allUsers.length) {
         wrap.innerHTML = `<div class="table-loading">Nenhum utilizador ainda. Convida alguém acima.</div>`
         return
       }
 
-      const analysisCols = analyses.map(a =>
-        `<th class="analysis-col">${a.company_name}</th>`).join('')
-
-      const rows = allUsers.map(email => {
-        const cells = analyses.map(a => `
-          <td class="access-cell">
-            <label class="toggle">
-              <input type="checkbox" ${hasAccess(email, a.id) ? 'checked' : ''}
-                onchange="toggleAccess('${email}','${a.id}','${a.company_name}',this.checked)">
-              <div class="toggle-track"></div>
-              <div class="toggle-thumb"></div>
-            </label>
-          </td>`).join('')
-
-        return `
-          <tr>
-            <td class="user-email-cell">${email}</td>
-            ${cells}
-          </tr>`
-      }).join('')
-
       wrap.innerHTML = `
         <table class="matrix-table">
-          <thead>
-            <tr>
-              <th>Utilizador</th>
-              ${analysisCols}
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
+          <thead><tr>
+            <th>Utilizador</th>
+            ${analyses.map(a => `<th class="analysis-col">${a.company_name}</th>`).join('')}
+          </tr></thead>
+          <tbody>
+            ${allUsers.map(email => `
+              <tr>
+                <td class="user-email-cell">${email}</td>
+                ${analyses.map(a => `
+                  <td class="access-cell">
+                    <label class="toggle">
+                      <input type="checkbox" ${hasAccess(email, a.id) ? 'checked' : ''}
+                        onchange="toggleAccess('${email}','${a.id}',this.checked)">
+                      <div class="toggle-track"></div>
+                      <div class="toggle-thumb"></div>
+                    </label>
+                  </td>`).join('')}
+              </tr>`).join('')}
+          </tbody>
         </table>`
     }
 
     /* ── Toggle access ──────────────────────────────────────── */
-    async function toggleAccess(email, analysisId, analysisName, grant) {
+    async function toggleAccess(email, analysisId, grant) {
+      const current = accessMap[email] || []
       if (grant) {
-        const { error } = await db.from('analysis_access').upsert(
-          { user_email: email, analysis_id: analysisId, analysis_name: analysisName },
-          { onConflict: 'user_email,analysis_id' }
-        )
-        if (error) { toast('Erro: ' + error.message); return }
-        accessData.push({ user_email: email, analysis_id: analysisId })
-        toast('Acesso concedido: ' + email.split('@')[0] + ' → ' + analysisName)
+        accessMap[email] = [...new Set([...current, analysisId])]
       } else {
-        const { error } = await db.from('analysis_access')
-          .delete().eq('user_email', email).eq('analysis_id', analysisId)
-        if (error) { toast('Erro: ' + error.message); return }
-        accessData = accessData.filter(r => !(r.user_email===email && r.analysis_id===analysisId))
-        toast('Acesso removido: ' + email.split('@')[0] + ' → ' + analysisName)
+        accessMap[email] = current.filter(id => id !== analysisId)
+        if (!accessMap[email].length) delete accessMap[email]
+      }
+      const saved = await saveAccessJson()
+      if (saved) {
+        const name = analyses.find(a => a.id === analysisId)?.company_name || analysisId
+        toast(grant ? `✓ Acesso concedido: ${email.split('@')[0]} → ${name}` : `✓ Acesso removido: ${email.split('@')[0]} → ${name}`)
+      } else {
+        // Revert UI
+        renderMatrix()
       }
     }
 
     /* ── Toast ──────────────────────────────────────────────── */
-    function toast(msg) {
+    function toast(msg, isErr) {
       const el = document.getElementById('toast')
       el.textContent = msg
+      el.style.background = isErr ? '#ef4444' : '#10b981'
       el.classList.add('show')
       setTimeout(() => el.classList.remove('show'), 2800)
     }

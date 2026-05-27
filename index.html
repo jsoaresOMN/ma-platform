@@ -492,19 +492,17 @@
         return
       }
 
-      // Non-admin: load allowed analyses from DB
+      // Non-admin: load allowed analyses from access.json
       document.getElementById('analysis-list').innerHTML =
         '<div class="empty-state"><p style="color:#7dd3fc">A carregar...</p></div>'
       try {
-        const result = await Promise.race([
-          db.from('analysis_access').select('analysis_id').eq('user_email', user.email),
-          new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 15000))
-        ])
-        const allowedIds = (result.data || []).map(r => r.analysis_id)
+        const r    = await fetch('access.json?t=' + Date.now())
+        const data = await r.json()
+        const allowedIds = (data.users || {})[user.email.toLowerCase()] || []
         boot(allowedIds)
       } catch (err) {
         console.error('[MA] access error:', err.message)
-        boot([])   // no access on error
+        boot([])
       }
     }
 
