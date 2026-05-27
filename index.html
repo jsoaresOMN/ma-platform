@@ -465,6 +465,7 @@
     })
 
     document.getElementById('logout-btn').addEventListener('click', async () => {
+      localStorage.removeItem('ma_is_admin')
       await db.auth.signOut()
     })
 
@@ -480,6 +481,9 @@
     /* ── App init ───────────────────────────────────────────────────── */
     async function initApp(user) {
       const isAdmin = ADMIN_EMAILS.includes(user.email.toLowerCase())
+
+      // Persist admin flag for analysis pages (same-origin localStorage)
+      localStorage.setItem('ma_is_admin', isAdmin ? '1' : '0')
 
       // Show app immediately
       document.getElementById('auth-gate').style.display        = 'none'

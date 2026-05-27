@@ -295,7 +295,7 @@
 
     let analyses  = []
     let accessMap = {}   // { email: [analysisId, ...] }
-    let ghToken   = sessionStorage.getItem('gh_token') || ''
+    let ghToken   = localStorage.getItem('ma_gh_token') || ''
 
     /* ── Auth check ─────────────────────────────────────────── */
     let adminReady = false
@@ -353,7 +353,7 @@
       if (!ghToken) {
         ghToken = prompt('Introduz o teu GitHub Personal Access Token (repo scope):')
         if (!ghToken) return false
-        sessionStorage.setItem('gh_token', ghToken)
+        localStorage.setItem('ma_gh_token', ghToken)
       }
       try {
         const sha     = await getFileSha()
@@ -371,7 +371,7 @@
       } catch (e) {
         toast('Erro ao guardar: ' + e.message, true)
         ghToken = ''
-        sessionStorage.removeItem('gh_token')
+        localStorage.removeItem('ma_gh_token')
         return false
       }
     }
