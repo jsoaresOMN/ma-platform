@@ -280,43 +280,37 @@
     const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhxa3JhZnJ1YWlrdWtna2pyc3d2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4ODA2MzYsImV4cCI6MjA5NTQ1NjYzNn0.ZL_cm50675xsh2DpAsAk4HD3Ws0UUvgHVFNq5qTRV5c'
     const db = supabase.createClient(SUPA_URL, SUPA_KEY)
 
-    let analyses   = []   // from manifest.json
-    let accessData = []   // from analysis_access table
-    let allUsers   = []   // unique emails from accessData
+    /* ── Admin list (keep in sync with index.html) ──────────── */
+    const ADMIN_EMAILS = ['jose.soares@omnibees.com']
+
+    let analyses   = []
+    let accessData = []
+    let allUsers   = []
 
     /* ── Auth check ─────────────────────────────────────────── */
     let adminReady = false
 
     db.auth.onAuthStateChange(async (event, session) => {
       if (!session) { if (!adminReady) window.location.href = 'index.html'; return }
-      if (adminReady) return   // already initialized
+      if (adminReady) return
 
       adminReady = true
 
-      // Show content immediately, verify admin async
+      const isAdmin = ADMIN_EMAILS.includes(session.user.email.toLowerCase())
+      if (!isAdmin) {
+        document.getElementById('auth-gate').innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px;background:#0a2535;color:#94a3b8">
+            <div style="font-size:48px">🚫</div>
+            <h2 style="color:#f1f5f9">Acesso negado</h2>
+            <p>Não tens permissões de administrador.</p>
+            <a href="index.html" style="color:#38bdf8;font-size:14px;">← Voltar ao hub</a>
+          </div>`
+        return
+      }
+
       document.getElementById('auth-gate').style.display    = 'none'
       document.getElementById('main-content').style.display = 'block'
       document.getElementById('admin-email').textContent    = session.user.email
-
-      try {
-        const result = await Promise.race([
-          db.from('admins').select('email').eq('email', session.user.email).maybeSingle(),
-          new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 6000))
-        ])
-        if (!result.data) {
-          document.getElementById('main-content').innerHTML = `
-            <div style="display:flex;align-items:center;justify-content:center;min-height:60vh;flex-direction:column;gap:12px;color:#64748b">
-              <div style="font-size:48px">🚫</div>
-              <h2 style="color:#1e293b">Acesso negado</h2>
-              <p>Não tens permissões de administrador.</p>
-              <a href="index.html" style="color:#2563eb;font-size:14px;">← Voltar ao hub</a>
-            </div>`
-          return
-        }
-      } catch (e) {
-        // On timeout — assume admin (they got through auth gate) and continue
-        console.warn('[Admin] admin check timed out, proceeding')
-      }
 
       await loadData()
     })

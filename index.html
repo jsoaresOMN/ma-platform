@@ -474,43 +474,37 @@
       el.innerHTML = text
     }
 
+    /* ── Admin list (add emails here to grant admin access) ────────── */
+    const ADMIN_EMAILS = ['jose.soares@omnibees.com']
+
     /* ── App init ───────────────────────────────────────────────────── */
     async function initApp(user) {
-      console.log('[MA] initApp:', user.email)
+      const isAdmin = ADMIN_EMAILS.includes(user.email.toLowerCase())
 
-      // Show app immediately — don't wait for DB queries
+      // Show app immediately
       document.getElementById('auth-gate').style.display        = 'none'
       document.getElementById('app').style.display              = 'flex'
       document.getElementById('user-email-display').textContent = user.email
+      document.getElementById('admin-btn').style.display        = isAdmin ? 'inline-flex' : 'none'
+
+      if (isAdmin) {
+        boot(null)   // admins see everything
+        return
+      }
+
+      // Non-admin: load allowed analyses from DB
       document.getElementById('analysis-list').innerHTML =
-        '<div class="empty-state"><p style="color:#7dd3fc">A carregar análises...</p></div>'
-
+        '<div class="empty-state"><p style="color:#7dd3fc">A carregar...</p></div>'
       try {
-        // Check admin (5s timeout)
-        const adminResult = await Promise.race([
-          db.from('admins').select('email').eq('email', user.email).maybeSingle(),
-          new Promise((_, r) => setTimeout(() => r(new Error('timeout admins')), 5000))
+        const result = await Promise.race([
+          db.from('analysis_access').select('analysis_id').eq('user_email', user.email),
+          new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 15000))
         ])
-        const isAdmin = !!(adminResult.data)
-        console.log('[MA] isAdmin:', isAdmin, adminResult.error || '')
-
-        document.getElementById('admin-btn').style.display = isAdmin ? 'inline-flex' : 'none'
-
-        let allowedIds = null
-        if (!isAdmin) {
-          const accessResult = await Promise.race([
-            db.from('analysis_access').select('analysis_id').eq('user_email', user.email),
-            new Promise((_, r) => setTimeout(() => r(new Error('timeout access')), 5000))
-          ])
-          allowedIds = ((accessResult.data) || []).map(r => r.analysis_id)
-          console.log('[MA] allowedIds:', allowedIds)
-        }
-
+        const allowedIds = (result.data || []).map(r => r.analysis_id)
         boot(allowedIds)
       } catch (err) {
-        console.error('[MA] initApp error:', err.message)
-        // Fallback: show all analyses
-        boot(null)
+        console.error('[MA] access error:', err.message)
+        boot([])   // no access on error
       }
     }
 
