@@ -402,6 +402,16 @@
 
     /* ── Auth listeners ─────────────────────────────────────────────── */
     db.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        // User clicked password reset link — show set-password modal
+        await initApp(session.user)
+        setTimeout(() => {
+          document.getElementById('pwd-modal').classList.add('open')
+          document.getElementById('pwd-modal').querySelector('p').textContent =
+            'Define uma nova password para a tua conta.'
+        }, 400)
+        return
+      }
       if (session) {
         await initApp(session.user)
         // Show set-password prompt after magic link login
